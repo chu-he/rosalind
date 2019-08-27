@@ -1,7 +1,11 @@
 import operator
 import sys
+
 sys.path.append('../read_FASTA')
 from read_FASTA import *
+
+sys.path.append('../read_scoring_matrix')
+from read_scoring_matrix import *
 
 def read_scoring_matrix(filename):
     matrix = {}
