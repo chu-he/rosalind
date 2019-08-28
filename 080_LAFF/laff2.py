@@ -1,4 +1,4 @@
-# This implementation is the most straight-forward, but hits a MemoryError trying to initialize the matrices
+# This implementation saves on memory by starting off the matrices with None values, but chokes up somewhere in the middle of processing the algorithm
 
 import operator
 import sys
@@ -10,12 +10,12 @@ sys.path.append('../read_scoring_matrix')
 from read_scoring_matrix import *
 
 class Node():
-    def __init__(self, action=''):
-        self.score = 0
-        self.parent = None
-        self.action = action
-        self.a_value = ''
-        self.b_value = ''
+    COUNT = 0
+    def __init__(self, score=0, parent=None, a_value='', b_value=''):
+        self.score = score
+        self.parent = parent
+        self.a_value = a_value
+        self.b_value = b_value
 
 # Algorithm: https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/local.pdf
 # Modified to allow zeroes for local alignment
@@ -24,9 +24,18 @@ def local_align(a, b, scoring_matrix):
     GAP_EXTEND = -1
     
     # Initialize alignment matrices
-    M = [[Node(action='START') for j in range(len(b)+1)] for i in range(len(a)+1)]
-    X = [[Node(action='START') for j in range(len(b)+1)] for i in range(len(a)+1)]
-    Y = [[Node(action='START') for j in range(len(b)+1)] for i in range(len(a)+1)]
+    # The strings being processed by this problem are much longer, so we cannot pre-create the Nodes due to memory issues
+    print('Creating matrices')
+    M = [[None for j in range(len(b)+1)] for i in range(len(a)+1)]
+    X = [[None for j in range(len(b)+1)] for i in range(len(a)+1)]
+    Y = [[None for j in range(len(b)+1)] for i in range(len(a)+1)]
+    
+    print('Initializing starter values')
+    for arr in [M, X, Y]:
+        for i in range(len(a)+1):
+            arr[i][0] = Node()
+        for j in range(len(b)+1):
+            arr[0][j] = Node()
     
     best_score = 0
     end_node = None
@@ -38,7 +47,6 @@ def local_align(a, b, scoring_matrix):
             y = b[j-1]
             
             # List of possibilities for M
-            node_m = M[i][j]
             m_possibilities = []
             match_score = scoring_matrix[f'{x}{y}']
             
@@ -46,59 +54,64 @@ def local_align(a, b, scoring_matrix):
             match_from_x = X[i-1][j-1]
             match_from_y = Y[i-1][j-1]
             for m in [match_from_m, match_from_x, match_from_y]:
-                m_possibilities.append( (m.score + match_score, m, x, y) )
+                if m.score + match_score > 0:
+                    m_possibilities.append( (m.score + match_score, m, x, y) )
             m_possibilities.append( (0, None, '', '') )
             
             best_m = max(m_possibilities, key=operator.itemgetter(0))
-            node_m.score, node_m.parent, node_m.a_value, node_m.b_value = best_m
+            M[i][j] = Node(score=best_m[0], parent=best_m[1], a_value=best_m[2], b_value=best_m[3])
             
-            if node_m.score > best_score:
-                best_score = node_m.score
-                end_node = node_m
+            if M[i][j].score > best_score:
+                best_score = M[i][j].score
+                end_node = M[i][j]
             
             # List of possibilities for X
-            node_x = X[i][j]
             x_possibilities = []
             
             x_gap_from_m = M[i][j-1]
-            x_possibilities.append( (x_gap_from_m.score + GAP_START + GAP_EXTEND, x_gap_from_m, '', y) )
+            if x_gap_from_m.score + GAP_START + GAP_EXTEND > 0:
+                x_possibilities.append( (x_gap_from_m.score + GAP_START + GAP_EXTEND, x_gap_from_m, '', y) )
             
             x_gap_from_x = X[i][j-1]
-            x_possibilities.append( (x_gap_from_x.score + GAP_EXTEND, x_gap_from_x, '', y) )
+            if x_gap_from_x.score + GAP_EXTEND > 0:
+                x_possibilities.append( (x_gap_from_x.score + GAP_EXTEND, x_gap_from_x, '', y) )
             
             x_gap_from_y = Y[i][j-1]
-            x_possibilities.append( (x_gap_from_y.score + GAP_START + GAP_EXTEND, x_gap_from_y, '', y) )
+            if x_gap_from_y.score + GAP_START + GAP_EXTEND > 0:
+                x_possibilities.append( (x_gap_from_y.score + GAP_START + GAP_EXTEND, x_gap_from_y, '', y) )
             
             x_possibilities.append( (0, None, '', '') )
             
             best_x = max(x_possibilities, key=operator.itemgetter(0))
-            node_x.score, node_x.parent, node_x.a_value, node_x.b_value = best_x
+            X[i][j] = Node(score=best_x[0], parent=best_x[1], a_value=best_x[2], b_value=best_x[3])
             
-            if node_x.score > best_score:
-                best_score = node_x.score
-                end_node = node_x
-            
+            if X[i][j].score > best_score:
+                best_score = X[i][j].score
+                end_node = X[i][j]
+                
             # List of possibilities for Y
-            node_y = Y[i][j]
             y_possibilities = []
             
             y_gap_from_m = M[i-1][j]
-            y_possibilities.append( (y_gap_from_m.score + GAP_START + GAP_EXTEND, y_gap_from_m, x, '') )
+            if y_gap_from_m.score + GAP_START + GAP_EXTEND > 0:
+                y_possibilities.append( (y_gap_from_m.score + GAP_START + GAP_EXTEND, y_gap_from_m, x, '') )
             
             y_gap_from_x = X[i-1][j]
-            y_possibilities.append( (y_gap_from_x.score + GAP_START + GAP_EXTEND, y_gap_from_x, x, '') )
+            if y_gap_from_x.score + GAP_START + GAP_EXTEND > 0:
+                y_possibilities.append( (y_gap_from_x.score + GAP_START + GAP_EXTEND, y_gap_from_x, x, '') )
             
             y_gap_from_y = Y[i-1][j]
-            y_possibilities.append( (y_gap_from_y.score + GAP_EXTEND, x_gap_from_y, x, '') )
+            if y_gap_from_y.score + GAP_EXTEND > 0:
+                y_possibilities.append( (y_gap_from_y.score + GAP_EXTEND, x_gap_from_y, x, '') )
             
             y_possibilities.append( (0, None, '', '') )
             
             best_y = max(y_possibilities, key=operator.itemgetter(0))
-            node_y.score, node_y.parent, node_y.a_value, node_y.b_value = best_y
+            Y[i][j] = Node(score=best_y[0], parent=best_y[1], a_value=best_y[2], b_value=best_y[3])
             
-            if node_y.score > best_score:
-                best_score = node_y.score
-                end_node = node_y
+            if Y[i][j].score > best_score:
+                best_score = Y[i][j].score
+                end_node = Y[i][j]
             
     display_alignment(a, b, M)
     display_alignment(a, b, X)
