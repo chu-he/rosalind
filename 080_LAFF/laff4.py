@@ -4,8 +4,10 @@
 #
 # Memory issue is now solved! But still runs very slowly for the huge dataset...
 
+import psutil
+import datetime
+
 import gc
-import operator
 import sys
 
 sys.path.append('../read_FASTA')
@@ -20,10 +22,29 @@ class Node():
         self.parent = parent
         self.a_value = a_value
         self.b_value = b_value
+        
+def bytes2human(n):
+    # http://code.activestate.com/recipes/578019
+    # >>> bytes2human(10000)
+    # '9.8K'
+    # >>> bytes2human(100001221)
+    # '95.4M'
+    symbols = ('K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y')
+    prefix = {}
+    for i, s in enumerate(symbols):
+        prefix[s] = 1 << (i + 1) * 10
+    for s in reversed(symbols):
+        if n >= prefix[s]:
+            value = float(n) / prefix[s]
+            return '%.1f%s' % (value, s)
+    return "%sB" % n
 
 # Algorithm: https://www.cs.cmu.edu/~ckingsf/bioinfo-lectures/local.pdf
 # Modified to allow zeroes for local alignment
 def local_align(a, b, scoring_matrix):
+
+    process = psutil.Process()
+
     print(f'String sizes: {len(a)} x {len(b)}')
     GAP_START = -10
     GAP_EXTEND = -1
@@ -42,7 +63,7 @@ def local_align(a, b, scoring_matrix):
     
     # Fill in matrices
     for a_index in range(1,len(a)+1):
-        print(f'Row {a_index}')
+        print(f'Row {a_index} - {bytes2human(process.memory_info().rss)}')
     
         # Initialize first column of this row 
         for arr in [M, X, Y]:
@@ -54,7 +75,7 @@ def local_align(a, b, scoring_matrix):
             y = b[j-1]
             
             # List of possibilities for M
-            m_possibilities = []
+            best_m = (0, None, '', '')
             match_score = scoring_matrix[f'{x}{y}']
             
             match_from_m = M[0][j-1]
@@ -63,11 +84,9 @@ def local_align(a, b, scoring_matrix):
             for m in [match_from_m, match_from_x, match_from_y]:
                 prev_score = m.score if m else 0
                 new_score = prev_score + match_score
-                if new_score > 0:
-                    m_possibilities.append( (new_score, m, x, y) )
-            m_possibilities.append( (0, None, '', '') )
+                if new_score > best_m[0]:
+                    best_m = (new_score, m, x, y)
             
-            best_m = max(m_possibilities, key=operator.itemgetter(0))
             if best_m[0] is 0:
                 node_m = None
             else:
@@ -79,26 +98,26 @@ def local_align(a, b, scoring_matrix):
                 end_node = node_m
             
             # List of possibilities for X
-            x_possibilities = []
+            best_x = (0, None, '', '')
             
             x_gap_from_m = M[1][j-1]
             if x_gap_from_m and x_gap_from_m.score > MINIMUM_FOR_GAP:
                 new_score_x_m = x_gap_from_m.score + GAP_START + GAP_EXTEND
-                x_possibilities.append( (new_score_x_m, x_gap_from_m, '', y) )
+                if new_score_x_m > best_x[0]:
+                    best_x = (new_score_x_m, x_gap_from_m, '', y)
             
             x_gap_from_x = X[1][j-1]
             if x_gap_from_x and x_gap_from_x.score > MINIMUM_FOR_GAP_EXTEND:
                 new_score_x_x = x_gap_from_x.score + GAP_EXTEND
-                x_possibilities.append( (new_score_x_x, x_gap_from_x, '', y) )
+                if new_score_x_x > best_x[0]:
+                    best_x = (new_score_x_x, x_gap_from_x, '', y)
             
             x_gap_from_y = Y[1][j-1]
             if x_gap_from_y and x_gap_from_y.score > MINIMUM_FOR_GAP:
                 new_score_x_y = x_gap_from_y.score + GAP_START + GAP_EXTEND
-                x_possibilities.append( (new_score_x_y, x_gap_from_y, '', y) )
-            
-            x_possibilities.append( (0, None, '', '') )
-            
-            best_x = max(x_possibilities, key=operator.itemgetter(0))
+                if new_score_x_y > best_x[0]:
+                    best_x = (new_score_x_y, x_gap_from_y, '', y)
+                    
             if best_x[0] is 0:
                 node_x = None
             else:
@@ -110,26 +129,26 @@ def local_align(a, b, scoring_matrix):
                 end_node = node_x
                 
             # List of possibilities for Y
-            y_possibilities = []
+            best_y = (0, None, '', '')
             
             y_gap_from_m = M[0][j]
             if y_gap_from_m and y_gap_from_m.score > MINIMUM_FOR_GAP:
                 new_score_y_m = y_gap_from_m.score + GAP_START + GAP_EXTEND
-                y_possibilities.append( (new_score_y_m, y_gap_from_m, x, '') )
+                if new_score_y_m > best_y[0]:
+                    best_y = (new_score_y_m, y_gap_from_m, x, '')
             
             y_gap_from_x = X[0][j]
             if y_gap_from_x and y_gap_from_x.score > MINIMUM_FOR_GAP:
                 new_score_y_x = y_gap_from_x.score + GAP_START + GAP_EXTEND
-                y_possibilities.append( (new_score_y_x, y_gap_from_x, x, '') )
+                if new_score_y_x > best_y[0]:
+                    best_y = (new_score_y_x, y_gap_from_x, x, '')
             
             y_gap_from_y = Y[0][j]
             if y_gap_from_y and y_gap_from_y.score > MINIMUM_FOR_GAP_EXTEND:
                 new_score_y_y = y_gap_from_y.score + GAP_EXTEND
-                y_possibilities.append( (new_score_y_y, y_gap_from_y, x, '') )
+                if new_score_y_y > best_y[0]:
+                    best_y = (new_score_y_y, y_gap_from_y, x, '')
             
-            y_possibilities.append( (0, None, '', '') )
-            
-            best_y = max(y_possibilities, key=operator.itemgetter(0))
             if best_y[0] is 0:
                 node_y = None
             else:
@@ -145,7 +164,7 @@ def local_align(a, b, scoring_matrix):
         M = M[1:]
         X = X[1:]
         Y = Y[1:]
-            
+        
         # Run the garbage collect to remove Nodes with no references
         gc.collect()
     
@@ -171,8 +190,15 @@ if __name__=='__main__':
     strings = read_fasta('dataset.txt')
     a, b = strings.values()
     
+    start_time = datetime.datetime.now()
+    print(f'{start_time}')
+    
     best_score, local_a, local_b = local_align(a, b, scoring_matrix)
 
+    end_time = datetime.datetime.now()
+    print(f'{start_time}')
+    print(f'{end_time}')
+    
     result = f'{best_score}\n{local_a}\n{local_b}'
     print(result)
     
