@@ -40,15 +40,14 @@ def local_align(a, b, scoring_matrix):
     last_i = 0
     t = datetime.datetime.now()
     for i, j in itertools.product(range(1, len(a)+1), range(1, len(b)+1)):
-        if i != last_i and i % 100 == 0:
+        if j == 1 and i % 100 == 0:
             last_i = i
             tn = datetime.datetime.now()
             print(f'{i} - {tn - t}')
             t = tn
         
         # Best match score is always equal to the best score at the previous step plus the current match score
-        match_score = scoring_matrix[f'{a[i-1]}{b[j-1]}']
-        M[i, j] = B[i-1, j-1] + match_score
+        M[i, j] = B[i-1, j-1] + scoring_matrix[f'{a[i-1]}{b[j-1]}']
         
         # Best a-gap score is the maximum of either starting a new gap or extending a previous a-gap
         X[i, j] = max(B[i-1, j] + GAP_START, X[i-1, j] + GAP_EXTEND)
@@ -61,7 +60,7 @@ def local_align(a, b, scoring_matrix):
             
     # Determine the best score and indices of
     i, j = numpy.unravel_index(numpy.argmax(B), B.shape)
-    best_score = int(B[i, j])
+    best_score = B[i, j]
     
     # Backtrack from best score and build aligned strings
     local_a = ''
