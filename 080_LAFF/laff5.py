@@ -2,6 +2,7 @@
 #   * Switching to numpy arrays for better size/performance
 #   * Removed Node() class, now each matrix just keeps track of the score
 #   * New B matrix (best score) to track the best score at each step
+#   * Remove M matrix (match), update B matrix code to handle this removal
 
 import datetime
 import numpy
@@ -27,8 +28,6 @@ def local_align(a, b, scoring_matrix):
     # Only set up the first row
     print('Creating matrices')
     
-    # M matrix - match
-    M = numpy.zeros( (len(a)+1, len(b)+1), dtype=numpy.integer )
     # X matrix - score if gap in A taken
     X = numpy.zeros( (len(a)+1, len(b)+1), dtype=numpy.integer )
     # Y matrix - score if gap in B taken
@@ -47,7 +46,7 @@ def local_align(a, b, scoring_matrix):
             t = tn
         
         # Best match score is always equal to the best score at the previous step plus the current match score
-        M[i, j] = B[i-1, j-1] + scoring_matrix[f'{a[i-1]}{b[j-1]}']
+        B[i, j] = B[i-1, j-1] + scoring_matrix[f'{a[i-1]}{b[j-1]}']
         
         # Best a-gap score is the maximum of either starting a new gap or extending a previous a-gap
         X[i, j] = max(B[i-1, j] + GAP_START, X[i-1, j] + GAP_EXTEND)
@@ -56,7 +55,7 @@ def local_align(a, b, scoring_matrix):
         Y[i, j] = max(B[i, j-1] + GAP_START, Y[i, j-1] + GAP_EXTEND)
         
         # Determine best score at this step
-        B[i, j] = max(M[i, j], X[i, j], Y[i, j], 0)
+        B[i, j] = max(B[i, j], X[i, j], Y[i, j], 0)
             
     # Determine the best score and indices of
     i, j = numpy.unravel_index(numpy.argmax(B), B.shape)
@@ -66,16 +65,16 @@ def local_align(a, b, scoring_matrix):
     local_a = ''
     local_b = ''
     while B[i, j]:
-        if B[i, j] == M[i, j]:
-            local_a = a[i-1] + local_a
-            local_b = b[j-1] + local_b
-            i -= 1
-            j -= 1
-        elif B[i, j] == X[i, j]:
+        if B[i, j] == X[i, j]:
             local_a = a[i-1] + local_a
             i -= 1
         elif B[i, j] == Y[i, j]:
             local_b = b[j-1] + local_b
+            j -= 1
+        else:
+            local_a = a[i-1] + local_a
+            local_b = b[j-1] + local_b
+            i -= 1
             j -= 1
             
     return (best_score, local_a, local_b)
