@@ -6,7 +6,6 @@
 
 import datetime
 import numpy
-import itertools
 
 import sys
 
@@ -38,24 +37,25 @@ def local_align(a, b, scoring_matrix):
     # Fill in matrices
     last_i = 0
     t = datetime.datetime.now()
-    for i, j in itertools.product(range(1, len(a)+1), range(1, len(b)+1)):
-        if j == 1 and i % 100 == 0:
+    for i in range(1, len(a)+1):
+        if i % 100 == 0:
             last_i = i
             tn = datetime.datetime.now()
             print(f'{i} - {tn - t}')
             t = tn
-        
-        # Best match score is always equal to the best score at the previous step plus the current match score
-        B[i, j] = B[i-1, j-1] + scoring_matrix[f'{a[i-1]}{b[j-1]}']
-        
-        # Best a-gap score is the maximum of either starting a new gap or extending a previous a-gap
-        X[i, j] = max(B[i-1, j] + GAP_START, X[i-1, j] + GAP_EXTEND)
-        
-        # Best b-gap score is the maximum of either starting a new gap or extending a previous b-gap
-        Y[i, j] = max(B[i, j-1] + GAP_START, Y[i, j-1] + GAP_EXTEND)
-        
-        # Determine best score at this step
-        B[i, j] = max(B[i, j], X[i, j], Y[i, j], 0)
+        for j in range(1, len(b)+1):
+            
+            # Best match score is always equal to the best score at the previous step plus the current match score
+            B[i, j] = B[i-1, j-1] + scoring_matrix[f'{a[i-1]}{b[j-1]}']
+            
+            # Best a-gap score is the maximum of either starting a new gap or extending a previous a-gap
+            X[i, j] = max(B[i-1, j] + GAP_START, X[i-1, j] + GAP_EXTEND)
+            
+            # Best b-gap score is the maximum of either starting a new gap or extending a previous b-gap
+            Y[i, j] = max(B[i, j-1] + GAP_START, Y[i, j-1] + GAP_EXTEND)
+            
+            # Determine best score at this step
+            B[i, j] = max(B[i, j], X[i, j], Y[i, j], 0)
             
     # Determine the best score and indices of
     i, j = numpy.unravel_index(numpy.argmax(B), B.shape)
