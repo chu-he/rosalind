@@ -1,1 +1,11 @@
 *.pyc
+Browse.VC.*
+*.ipch
+*.sln
+*.vcxproj
+*.vcxproj.*
+*.suo
+*.testlog
+*.manifest
+Debug
+Release
