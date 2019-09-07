@@ -61,6 +61,13 @@ def local_align(a, b, scoring_matrix):
     i, j = numpy.unravel_index(numpy.argmax(B), B.shape)
     best_score = B[i, j]
     
+    '''
+    for i in range(len(a)+1):
+        for j in range(len(b)+1):
+            print(f'{B[i][j]:3}', end='')
+        print()
+    '''
+    
     # Backtrack from best score and build aligned strings
     local_a = ''
     local_b = ''
