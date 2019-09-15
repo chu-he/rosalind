@@ -45,14 +45,15 @@ def overlap_align(a, b):
             
             M[i, j], D[i, j] = max(possibilities, key=op.itemgetter(0))
             
-    #display_alignment(a, b, M)
+    display_alignment(a, b, M)
+    display_alignment(a, b, D)
             
     # Move the j-pointer to the position at which all of A has been consumed
     # and the best score has been found
     best_score = M[-1, 0]
     i = len(a)
     for k in range(len(b)+1):
-        if M[i, k] > best_score:
+        if M[i, k] >= best_score:
             best_score = M[i, k]
             j = k
     
@@ -69,12 +70,12 @@ def overlap_align(a, b):
             i -= 1
             j -= 1
         elif D[i, j] == 2:
-            local_a = '-' + local_a
-            local_b = b_ch + local_b
-            i -= 1
-        elif D[i, j] == 3:
             local_a = a_ch + local_a
             local_b = '-' + local_b
+            i -= 1
+        elif D[i, j] == 3:
+            local_b = b_ch + local_b
+            local_a = '-' + local_a
             j -= 1
             
         if i == 0 or j == 0: break
@@ -88,11 +89,11 @@ def display_alignment(a, b, alignment):
     print(' '*3*size + ''.join([f'{x:>{size}}' for x in b]))
     
     # First row
-    print(' '*2*size + ''.join([f'{n:>{size}}' for n in alignment[0]]))
+    print(f'{0:{size}}' + ' '*size + ''.join([f'{n:>{size}}' for n in alignment[0]]))
     
     # Other rows
     for i in range(len(a)):
-        print(f'{i:{size}}' + f'{a[i]:>{size}}' + ''.join([f'{n:>{size}}' for n in alignment[i+1]]))
+        print(f'{i+1:{size}}' + f'{a[i]:>{size}}' + ''.join([f'{n:>{size}}' for n in alignment[i+1]]))
         
 def write_result(result):
     with open('result.txt', 'w') as fp:
