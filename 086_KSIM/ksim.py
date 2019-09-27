@@ -31,15 +31,11 @@ def motifs(a, b, k):
             
         for j in range(0, len(b)+1):
             score = -99999999
-            if i == 0 and j == 0:
-                score = 0
-                root = 0
-             
-            if i > 0:
-                new_score = A[i-1, j] - 1
-                if new_score > score:
-                    score = new_score
-                    root  = R[i-1, j]
+         
+            new_score = A[i-1, j] - 1
+            if new_score > score:
+                score = new_score
+                root  = R[i-1, j]
                     
             if j > 0:
                 new_score = A[i, j-1] - 1
@@ -47,7 +43,6 @@ def motifs(a, b, k):
                     score = new_score
                     root  = R[i, j-1]
                     
-            if i > 0 and j > 0:
                 new_score = A[i-1, j-1] + ( -1 if a[i-1] != b[j-1] else 0 )
                 if new_score > score:
                     score = new_score
